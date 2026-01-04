@@ -1,5 +1,5 @@
---- freetype/builds/cmake/FindBrotliDec.cmake
-+++ freetype/builds/cmake/FindBrotliDec.cmake
+--- a/freetype/builds/cmake/FindBrotliDec.cmake
++++ b/freetype/builds/cmake/FindBrotliDec.cmake
 @@ -39,6 +39,16 @@ find_library(BROTLIDEC_LIBRARIES
    HINTS ${PC_BROTLIDEC_LIBDIR}
          ${PC_BROTLIDEC_LIBRARY_DIRS})
