@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>FreeType.Native</id>
+    <version>$version$</version>
+    <title>FreeType Native Libraries</title>
+    <authors>FreeType Project</authors>
+    <owners>FreeType Project</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="file">LICENSE.TXT</license>
+    <projectUrl>https://freetype.org/</projectUrl>
+    <description>Native FreeType libraries for Windows (x64, x86), Linux (x64, ARM64), and macOS (x64, ARM64/Apple Silicon) with statically linked dependencies (zlib, bzip2, libpng, brotli). Automatically copies native libraries to output directory for .NET applications.</description>
+    <copyright>Copyright © 1996-2025 David Turner, Robert Wilhelm, and Werner Lemberg</copyright>
+    <tags>freetype native font truetype opentype dll native-library</tags>
+    <repository type="git" url="https://github.com/freetype/freetype" />
+    <readme>README.md</readme>
+  </metadata>
+  <files>
+    <!-- License and readme -->
+    <file src="freetype\LICENSE.TXT" target="LICENSE.TXT" />
+    <file src="freetype\README.md" target="README.md" />
+    
+    <!-- Build targets file -->
+    <file src="nuget\FreeType.Native.targets" target="build\FreeType.Native.targets" />
+    <file src="nuget\FreeType.Native.targets" target="buildTransitive\FreeType.Native.targets" />
+    
+    <!-- Windows x64 -->
+    <file src="artifacts\windows-x64\freetype.dll" target="runtimes\win-x64\native\freetype.dll" />
+    <file src="artifacts\windows-x64\freetype.lib" target="runtimes\win-x64\native\freetype.lib" />
+    
+    <!-- Windows x86 -->
+    <file src="artifacts\windows-x86\freetype.dll" target="runtimes\win-x86\native\freetype.dll" />
+    <file src="artifacts\windows-x86\freetype.lib" target="runtimes\win-x86\native\freetype.lib" />
+    
+    <!-- Linux x64 -->
+    <file src="artifacts\linux-x64\libfreetype.so.6" target="runtimes\linux-x64\native\libfreetype.so.6" />
+    
+    <!-- Linux ARM64 -->
+    <file src="artifacts\linux-arm64\libfreetype.so.6" target="runtimes\linux-arm64\native\libfreetype.so.6" />
+    
+    <!-- macOS x64 -->
+    <file src="artifacts\osx-x64\libfreetype.6.dylib" target="runtimes\osx-x64\native\libfreetype.6.dylib" />
+    
+    <!-- macOS ARM64 (Apple Silicon) -->
+    <file src="artifacts\osx-arm64\libfreetype.6.dylib" target="runtimes\osx-arm64\native\libfreetype.6.dylib" />
+    
+    <!-- Headers for native interop (optional) -->
+    <file src="freetype\include\**\*.h" target="build\native\include" />
+  </files>
+</package>

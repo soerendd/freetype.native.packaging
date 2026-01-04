@@ -1,0 +1,384 @@
+name: Build FreeType
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+      - 'nuget-v*'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [x64, Win32]
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Setup and Install vcpkg dependencies
+      run: |
+        git clone https://github.com/microsoft/vcpkg.git
+        .\vcpkg\bootstrap-vcpkg.bat
+        $vcpkgTriplet = if ("${{ matrix.arch }}" -eq "x64") { "x64-windows-static" } else { "x86-windows-static" }
+        .\vcpkg\vcpkg install zlib:$vcpkgTriplet bzip2:$vcpkgTriplet libpng:$vcpkgTriplet brotli:$vcpkgTriplet
+        .\vcpkg\vcpkg list
+        # Persist VCPKG_ROOT for subsequent steps
+        "VCPKG_ROOT=${{ github.workspace }}\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+    
+    - name: Setup MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: ${{ matrix.arch }}
+    
+    - name: Configure CMake
+      env:
+        VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+        CC: cl
+        CXX: cl
+      run: |
+        $vcpkgTriplet = if ("${{ matrix.arch }}" -eq "x64") { "x64-windows-static" } else { "x86-windows-static" }
+        $vcpkgRoot = "${{ github.workspace }}\vcpkg"
+        $toolchainFile = "$vcpkgRoot\scripts\buildsystems\vcpkg.cmake"
+        $prefixPath = "$vcpkgRoot\installed\$vcpkgTriplet"
+        cmake -B build -S freetype -G Ninja `
+          -DCMAKE_C_COMPILER=cl `
+          -DCMAKE_CXX_COMPILER=cl `
+          -DCMAKE_PREFIX_PATH="$prefixPath" `
+          -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" `
+          -DBUILD_SHARED_LIBS=ON `
+          -DCMAKE_BUILD_TYPE=Release `
+          -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
+          -DFT_REQUIRE_ZLIB=TRUE `
+          -DFT_REQUIRE_BZIP2=TRUE `
+          -DFT_REQUIRE_PNG=TRUE `
+          -DFT_REQUIRE_BROTLI=TRUE `
+          -DFT_DISABLE_HARFBUZZ=TRUE
+    
+    - name: Build
+      run: cmake --build build
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: freetype-windows-${{ matrix.arch }}
+        path: |
+          build/*.dll
+          build/*.lib
+          build/include/freetype/config/*.h
+        if-no-files-found: error
+
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install build tools
+      run: |
+        sudo apt-get update
+        if [ "${{ matrix.arch }}" = "arm64" ]; then
+          sudo apt-get install -y cmake build-essential pkg-config gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+        else
+          sudo apt-get install -y cmake build-essential pkg-config
+        fi
+    
+    - name: Build static dependencies
+      run: |
+        mkdir -p deps
+        cd deps
+        
+        # Set cross-compilation variables for ARM64
+        if [ "${{ matrix.arch }}" = "arm64" ]; then
+          export CC=aarch64-linux-gnu-gcc
+          export CXX=aarch64-linux-gnu-g++
+          export AR=aarch64-linux-gnu-ar
+          export RANLIB=aarch64-linux-gnu-ranlib
+          export HOST_FLAG="--host=aarch64-linux-gnu"
+          export CMAKE_TOOLCHAIN_ARGS="-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++"
+        else
+          export HOST_FLAG=""
+          export CMAKE_TOOLCHAIN_ARGS=""
+        fi
+        
+        # Build zlib (uses CC environment variable, not --host)
+        wget https://zlib.net/zlib-1.3.1.tar.gz
+        tar xzf zlib-1.3.1.tar.gz
+        cd zlib-1.3.1
+        CFLAGS="-fPIC -O2" ./configure --prefix=$PWD/../../build-deps --static
+        make -j$(nproc)
+        make install
+        cd ..
+        
+        # Build bzip2 (needs explicit CC for cross-compilation)
+        wget https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz
+        tar xzf bzip2-1.0.8.tar.gz
+        cd bzip2-1.0.8
+        if [ "${{ matrix.arch }}" = "arm64" ]; then
+          # Build only library, skip tests (can't run ARM64 binary on x64 host)
+          make -j$(nproc) libbz2.a CC=aarch64-linux-gnu-gcc AR=aarch64-linux-gnu-ar RANLIB=aarch64-linux-gnu-ranlib CFLAGS="-fPIC -O2"
+          # Manually install library files
+          mkdir -p $PWD/../../build-deps/lib $PWD/../../build-deps/include
+          cp libbz2.a $PWD/../../build-deps/lib/
+          cp bzlib.h $PWD/../../build-deps/include/
+        else
+          make -j$(nproc) CFLAGS="-fPIC -O2"
+          make install PREFIX=$PWD/../../build-deps
+        fi
+        cd ..
+        
+        # Build libpng (needs zlib)
+        wget https://download.sourceforge.net/libpng/libpng-1.6.53.tar.gz
+        tar xzf libpng-1.6.53.tar.gz
+        cd libpng-1.6.53
+        export PKG_CONFIG_PATH=$PWD/../../build-deps/lib/pkgconfig:$PKG_CONFIG_PATH
+        ./configure --prefix=$PWD/../../build-deps --enable-shared=no --enable-static=yes \
+          $HOST_FLAG \
+          CPPFLAGS="-I$PWD/../../build-deps/include" \
+          CFLAGS="-fPIC -O2 -I$PWD/../../build-deps/include" \
+          LDFLAGS="-L$PWD/../../build-deps/lib"
+        make -j$(nproc)
+        make install
+        cd ..
+        
+        # Build brotli
+        git clone --depth 1 --branch v1.2.0 https://github.com/google/brotli.git
+        cd brotli
+        mkdir build && cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=$PWD/../../../build-deps \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+          $CMAKE_TOOLCHAIN_ARGS
+        make -j$(nproc)
+        make install
+        cd ../..
+    
+    - name: Configure CMake
+      run: |
+        if [ "${{ matrix.arch }}" = "arm64" ]; then
+          export CMAKE_TOOLCHAIN_ARGS="-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++"
+        else
+          export CMAKE_TOOLCHAIN_ARGS=""
+        fi
+        
+        cmake -B build -S freetype \
+          -D CMAKE_BUILD_TYPE=Release \
+          -D BUILD_SHARED_LIBS=ON \
+          -D CMAKE_PREFIX_PATH=$PWD/build-deps \
+          -D FT_REQUIRE_ZLIB=TRUE \
+          -D FT_REQUIRE_BZIP2=TRUE \
+          -D FT_REQUIRE_PNG=TRUE \
+          -D FT_REQUIRE_BROTLI=TRUE \
+          -D FT_DISABLE_HARFBUZZ=TRUE \
+          -D CMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
+          $CMAKE_TOOLCHAIN_ARGS
+    
+    - name: Build
+      run: cmake --build build
+    
+    - name: Verify SO dependencies
+      run: |
+        echo "Checking shared library dependencies..."
+        ldd build/libfreetype.so.6 || true
+        echo -e "\nChecking for statically linked symbols..."
+        nm -D build/libfreetype.so.6 | grep -E "zlib|bzip2|png|brotli" | head -20 || true
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: freetype-linux-${{ matrix.arch }}
+        path: |
+          build/libfreetype.so*
+          build/include/freetype/config/*.h
+        if-no-files-found: error
+  
+  build-macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install build tools
+      run: |
+        brew install cmake pkg-config
+    
+    - name: Build static dependencies
+      run: |
+        mkdir -p deps
+        cd deps
+        
+        # Set architecture flags
+        if [ "${{ matrix.arch }}" = "arm64" ]; then
+          export ARCH_FLAGS="-arch arm64"
+          export CMAKE_OSX_ARCH="arm64"
+        else
+          export ARCH_FLAGS="-arch x86_64"
+          export CMAKE_OSX_ARCH="x86_64"
+        fi
+        
+        # Build zlib
+        wget https://zlib.net/zlib-1.3.1.tar.gz
+        tar xzf zlib-1.3.1.tar.gz
+        cd zlib-1.3.1
+        CFLAGS="$ARCH_FLAGS -fPIC -O2" ./configure --prefix=$PWD/../../build-deps --static
+        make -j$(sysctl -n hw.ncpu)
+        make install
+        cd ..
+        
+        # Build bzip2
+        wget https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz
+        tar xzf bzip2-1.0.8.tar.gz
+        cd bzip2-1.0.8
+        make -j$(sysctl -n hw.ncpu) CFLAGS="$ARCH_FLAGS -fPIC -O2"
+        make install PREFIX=$PWD/../../build-deps
+        cd ..
+        
+        # Build libpng
+        wget https://download.sourceforge.net/libpng/libpng-1.6.53.tar.gz
+        tar xzf libpng-1.6.53.tar.gz
+        cd libpng-1.6.53
+        export PKG_CONFIG_PATH=$PWD/../../build-deps/lib/pkgconfig:$PKG_CONFIG_PATH
+        ./configure --prefix=$PWD/../../build-deps --enable-shared=no --enable-static=yes \
+          CPPFLAGS="-I$PWD/../../build-deps/include" \
+          CFLAGS="$ARCH_FLAGS -fPIC -O2 -I$PWD/../../build-deps/include" \
+          LDFLAGS="-L$PWD/../../build-deps/lib"
+        make -j$(sysctl -n hw.ncpu)
+        make install
+        cd ..
+        
+        # Build brotli
+        git clone --depth 1 --branch v1.2.0 https://github.com/google/brotli.git
+        cd brotli
+        mkdir build && cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=$PWD/../../../build-deps \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+          -DCMAKE_OSX_ARCHITECTURES=$CMAKE_OSX_ARCH
+        make -j$(sysctl -n hw.ncpu)
+        make install
+        cd ../..
+    
+    - name: Configure CMake
+      run: |
+        if [ "${{ matrix.arch }}" = "arm64" ]; then
+          export CMAKE_OSX_ARCH="arm64"
+        else
+          export CMAKE_OSX_ARCH="x86_64"
+        fi
+        
+        cmake -B build -S freetype \
+          -D CMAKE_BUILD_TYPE=Release \
+          -D BUILD_SHARED_LIBS=ON \
+          -D CMAKE_PREFIX_PATH=$PWD/build-deps \
+          -D CMAKE_OSX_ARCHITECTURES=$CMAKE_OSX_ARCH \
+          -D FT_REQUIRE_ZLIB=TRUE \
+          -D FT_REQUIRE_BZIP2=TRUE \
+          -D FT_REQUIRE_PNG=TRUE \
+          -D FT_REQUIRE_BROTLI=TRUE \
+          -D FT_DISABLE_HARFBUZZ=TRUE
+    
+    - name: Build
+      run: cmake --build build
+    
+    - name: Verify dylib dependencies
+      run: |
+        echo "Checking shared library dependencies..."
+        otool -L build/libfreetype.*.dylib || true
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: freetype-macos-${{ matrix.arch }}
+        path: |
+          build/libfreetype*.dylib
+          build/include/freetype/config/*.h
+        if-no-files-found: error
+
+  pack-nuget:
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts-download
+    
+    - name: Organize artifacts for NuGet
+      run: |
+        New-Item -ItemType Directory -Force -Path artifacts\windows-x64
+        New-Item -ItemType Directory -Force -Path artifacts\windows-x86
+        New-Item -ItemType Directory -Force -Path artifacts\linux-x64
+        New-Item -ItemType Directory -Force -Path artifacts\linux-arm64
+        New-Item -ItemType Directory -Force -Path artifacts\osx-x64
+        New-Item -ItemType Directory -Force -Path artifacts\osx-arm64
+        
+        Copy-Item artifacts-download\freetype-windows-x64\*.dll artifacts\windows-x64\
+        Copy-Item artifacts-download\freetype-windows-x64\*.lib artifacts\windows-x64\
+        
+        Copy-Item artifacts-download\freetype-windows-Win32\*.dll artifacts\windows-x86\
+        Copy-Item artifacts-download\freetype-windows-Win32\*.lib artifacts\windows-x86\
+        
+        Copy-Item artifacts-download\freetype-linux-x64\libfreetype.so* artifacts\linux-x64\
+        Copy-Item artifacts-download\freetype-linux-arm64\libfreetype.so* artifacts\linux-arm64\
+        
+        Copy-Item artifacts-download\freetype-macos-x64\libfreetype*.dylib artifacts\osx-x64\
+        Copy-Item artifacts-download\freetype-macos-arm64\libfreetype*.dylib artifacts\osx-arm64\
+        
+        Get-ChildItem -Recurse artifacts
+    
+    - name: Pack NuGet package
+      run: |
+        # Copy README from freetype submodule
+        Copy-Item freetype\README freetype\README.md
+        
+        # Read package version from nuget.version file (format: 2.14.1-r1)
+        $packageVersion = Get-Content nuget.version -Raw
+        $packageVersion = $packageVersion.Trim()
+        
+        if ("${{ github.ref }}" -match "refs/tags/nuget-v(.+)") {
+          # Use version from tag if it matches nuget-v* pattern (e.g., nuget-v2.14.1-r2)
+          $version = $matches[1]
+        } elseif ("${{ github.ref }}" -eq "refs/heads/main" -or "${{ github.ref }}" -eq "refs/heads/master") {
+          # For main branch, append CI build number to base version
+          $version = "$packageVersion-ci${{ github.run_number }}"
+        } else {
+          # For feature branches, append dev build number
+          $version = "$packageVersion-dev${{ github.run_number }}"
+        }
+        Write-Host "Creating NuGet package version: $version (base from nuget.version: $packageVersion)"
+        nuget pack FreeType.Native.nuspec -Version $version -OutputDirectory nupkg
+    
+    - name: Upload NuGet package
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-package
+        path: nupkg/*.nupkg
+    
+    - name: Publish to NuGet
+      if: startsWith(github.ref, 'refs/tags/nuget-v')
+      run: |
+        nuget push nupkg\*.nupkg -ApiKey ${{ secrets.NUGET_API_KEY }} -Source https://api.nuget.org/v3/index.json
+      continue-on-error: true
