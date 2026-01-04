@@ -47,6 +47,8 @@ jobs:
         $vcpkgRoot = "${{ github.workspace }}\vcpkg"
         $toolchainFile = "$vcpkgRoot\scripts\buildsystems\vcpkg.cmake"
         $prefixPath = "$vcpkgRoot\installed\$vcpkgTriplet"
+        # Add brotlicommon.lib to fix missing symbols
+        $brotliCommonLib = "$vcpkgRoot\installed\$vcpkgTriplet\lib\brotlicommon.lib"
         cmake -B build -S freetype -G Ninja `
           -DCMAKE_C_COMPILER=cl `
           -DCMAKE_CXX_COMPILER=cl `
@@ -55,6 +57,7 @@ jobs:
           -DBUILD_SHARED_LIBS=ON `
           -DCMAKE_BUILD_TYPE=Release `
           -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
+          -DCMAKE_SHARED_LINKER_FLAGS="$brotliCommonLib" `
           -DFT_REQUIRE_ZLIB=TRUE `
           -DFT_REQUIRE_BZIP2=TRUE `
           -DFT_REQUIRE_PNG=TRUE `
@@ -173,6 +176,9 @@ jobs:
           export CMAKE_TOOLCHAIN_ARGS=""
         fi
         
+        # Set PKG_CONFIG_PATH to help find brotli
+        export PKG_CONFIG_PATH=$PWD/build-deps/lib/pkgconfig:$PKG_CONFIG_PATH
+        
         cmake -B build -S freetype \
           -D CMAKE_BUILD_TYPE=Release \
           -D BUILD_SHARED_LIBS=ON \
@@ -283,6 +289,9 @@ jobs:
         else
           export CMAKE_OSX_ARCH="x86_64"
         fi
+        
+        # Set PKG_CONFIG_PATH to help find brotli
+        export PKG_CONFIG_PATH=$PWD/build-deps/lib/pkgconfig:$PKG_CONFIG_PATH
         
         cmake -B build -S freetype \
           -D CMAKE_BUILD_TYPE=Release \
