@@ -1,0 +1,19 @@
+--- freetype/builds/cmake/FindBrotliDec.cmake
++++ freetype/builds/cmake/FindBrotliDec.cmake
+@@ -39,6 +39,16 @@ find_library(BROTLIDEC_LIBRARIES
+   HINTS ${PC_BROTLIDEC_LIBDIR}
+         ${PC_BROTLIDEC_LIBRARY_DIRS})
+ 
++# Find brotlicommon library (required dependency of brotlidec)
++find_library(BROTLICOMMON_LIBRARIES
++  NAMES brotlicommon
++  HINTS ${PC_BROTLIDEC_LIBDIR}
++        ${PC_BROTLIDEC_LIBRARY_DIRS})
++
++# Add brotlicommon to the libraries list
++if (BROTLIDEC_LIBRARIES AND BROTLICOMMON_LIBRARIES)
++  set(BROTLIDEC_LIBRARIES ${BROTLIDEC_LIBRARIES} ${BROTLICOMMON_LIBRARIES})
++endif ()
+ 
+ include(FindPackageHandleStandardArgs)
+ find_package_handle_standard_args(
