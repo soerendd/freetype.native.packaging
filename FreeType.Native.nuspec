@@ -33,10 +33,10 @@
     <file src="artifacts\windows-x86\freetype.lib" target="runtimes\win-x86\native\freetype.lib" />
     
     <!-- Linux x64 -->
-    <file src="artifacts\linux-x64\libfreetype.so.6" target="runtimes\linux-x64\native\libfreetype.so.6" />
+    <file src="artifacts\linux-x64\libfreetype.so" target="runtimes\linux-x64\native\libfreetype.so" />
     
     <!-- Linux ARM64 -->
-    <file src="artifacts\linux-arm64\libfreetype.so.6" target="runtimes\linux-arm64\native\libfreetype.so.6" />
+    <file src="artifacts\linux-arm64\libfreetype.so" target="runtimes\linux-arm64\native\libfreetype.so" />
     
     <!-- macOS x64 -->
     <file src="artifacts\osx-x64\libfreetype.6.dylib" target="runtimes\osx-x64\native\libfreetype.6.dylib" />

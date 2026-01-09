@@ -6,6 +6,8 @@ on:
     tags:
       - 'v*'
       - 'nuget-v*'
+      - 'native-v*'
+      - 'bindings-v*'
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
@@ -377,44 +379,86 @@ jobs:
         Copy-Item artifacts-download\freetype-windows-Win32\*.dll artifacts\windows-x86\
         Copy-Item artifacts-download\freetype-windows-Win32\*.lib artifacts\windows-x86\
         
-        Copy-Item artifacts-download\freetype-linux-x64\libfreetype.so* artifacts\linux-x64\
-        Copy-Item artifacts-download\freetype-linux-arm64\libfreetype.so* artifacts\linux-arm64\
+        # Copy and rename versioned .so to unversioned .so for Linux
+        $linuxX64So = Get-ChildItem artifacts-download\freetype-linux-x64\libfreetype.so.* | Select-Object -First 1
+        Copy-Item $linuxX64So.FullName artifacts\linux-x64\libfreetype.so
+        
+        $linuxArm64So = Get-ChildItem artifacts-download\freetype-linux-arm64\libfreetype.so.* | Select-Object -First 1
+        Copy-Item $linuxArm64So.FullName artifacts\linux-arm64\libfreetype.so
         
         Copy-Item artifacts-download\freetype-macos-x64\libfreetype*.dylib artifacts\osx-x64\
         Copy-Item artifacts-download\freetype-macos-arm64\libfreetype*.dylib artifacts\osx-arm64\
         
         Get-ChildItem -Recurse artifacts
     
-    - name: Pack NuGet package
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Install ClangSharpPInvokeGenerator
+      run: dotnet tool install --global ClangSharpPInvokeGenerator
+    
+    - name: Generate C# bindings
+      run: ClangSharpPInvokeGenerator @generate-freetype-bindings.rsp
+    
+    - name: Build FreeType.Native.Bindings project
+      run: dotnet build bindings\FreeType.Native.Bindings\FreeType.Native.Bindings.csproj -c Release
+    
+    - name: Pack NuGet packages
       run: |
         # Copy README from freetype submodule
         Copy-Item freetype\README freetype\README.md
         
-        # Read package version from nuget.version file (format: 2.14.1-r1)
-        $packageVersion = Get-Content nuget.version -Raw
-        $packageVersion = $packageVersion.Trim()
+        # Read native package version from nuget.version file
+        $nativeVersion = Get-Content nuget.version -Raw
+        $nativeVersion = $nativeVersion.Trim()
         
-        if ("${{ github.ref }}" -match "refs/tags/nuget-v(.+)") {
-          # Use version from tag if it matches nuget-v* pattern (e.g., nuget-v2.14.1-r2)
-          $version = $matches[1]
+        # Read bindings package version from nuget.bindings.version file
+        $bindingsVersion = Get-Content nuget.bindings.version -Raw
+        $bindingsVersion = $bindingsVersion.Trim()
+        
+        # Apply versioning logic for native package
+        if ("${{ github.ref }}" -match "refs/tags/native-v(.+)") {
+          $nativeVersion = $matches[1]
         } elseif ("${{ github.ref }}" -eq "refs/heads/main" -or "${{ github.ref }}" -eq "refs/heads/master") {
-          # For main branch, append CI build number to base version
-          $version = "$packageVersion-ci${{ github.run_number }}"
-        } else {
-          # For feature branches, append dev build number
-          $version = "$packageVersion-dev${{ github.run_number }}"
+          $nativeVersion = "$nativeVersion-ci${{ github.run_number }}"
+        } elseif ("${{ github.ref }}" -notmatch "refs/tags/") {
+          $nativeVersion = "$nativeVersion-dev${{ github.run_number }}"
         }
-        Write-Host "Creating NuGet package version: $version (base from nuget.version: $packageVersion)"
-        nuget pack FreeType.Native.nuspec -Version $version -OutputDirectory nupkg
+        
+        # Apply versioning logic for bindings package
+        if ("${{ github.ref }}" -match "refs/tags/bindings-v(.+)") {
+          $bindingsVersion = $matches[1]
+        } elseif ("${{ github.ref }}" -eq "refs/heads/main" -or "${{ github.ref }}" -eq "refs/heads/master") {
+          $bindingsVersion = "$bindingsVersion-ci${{ github.run_number }}"
+        } elseif ("${{ github.ref }}" -notmatch "refs/tags/") {
+          $bindingsVersion = "$bindingsVersion-dev${{ github.run_number }}"
+        }
+        
+        Write-Host "Creating FreeType.Native version: $nativeVersion"
+        Write-Host "Creating FreeType.Native.Bindings version: $bindingsVersion"
+        
+        # Pack FreeType.Native (native libraries)
+        nuget pack FreeType.Native.nuspec -Version $nativeVersion -OutputDirectory nupkg
+        
+        # Pack FreeType.Native.Bindings (C# bindings)
+        nuget pack FreeType.Native.Bindings.nuspec -Version $bindingsVersion -OutputDirectory nupkg
     
-    - name: Upload NuGet package
+    - name: Upload NuGet packages
       uses: actions/upload-artifact@v4
       with:
-        name: nuget-package
+        name: nuget-packages
         path: nupkg/*.nupkg
     
-    - name: Publish to NuGet
-      if: startsWith(github.ref, 'refs/tags/nuget-v')
+    - name: Publish FreeType.Native to NuGet
+      if: startsWith(github.ref, 'refs/tags/native-v')
       run: |
-        nuget push nupkg\*.nupkg -ApiKey ${{ secrets.NUGET_API_KEY }} -Source https://api.nuget.org/v3/index.json
+        nuget push nupkg\FreeType.Native.*.nupkg -ApiKey ${{ secrets.NUGET_API_KEY }} -Source https://api.nuget.org/v3/index.json
+      continue-on-error: true
+    
+    - name: Publish FreeType.Native.Bindings to NuGet
+      if: startsWith(github.ref, 'refs/tags/bindings-v')
+      run: |
+        nuget push nupkg\FreeType.Native.Bindings.*.nupkg -ApiKey ${{ secrets.NUGET_API_KEY }} -Source https://api.nuget.org/v3/index.json
       continue-on-error: true

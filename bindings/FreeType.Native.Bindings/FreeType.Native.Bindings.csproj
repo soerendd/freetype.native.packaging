@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <LangVersion>latest</LangVersion>
+        <Version>1.0.1</Version>
+        <Authors>FreeType Project</Authors>
+        <Company>FreeType Project</Company>
+        <Product>FreeType C# Bindings</Product>
+        <Description>C# bindings for FreeType - automatically generated P/Invoke declarations for the FreeType font rasterization library</Description>
+        <Copyright>Copyright © 1996-2025 David Turner, Robert Wilhelm, and Werner Lemberg</Copyright>
+        <PackageLicenseExpression>FTL</PackageLicenseExpression>
+        <PackageProjectUrl>https://freetype.org/</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/freetype/freetype</RepositoryUrl>
+        <PackageTags>freetype native font truetype opentype bindings interop pinvoke</PackageTags>
+        <Nullable>enable</Nullable>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+</Project>

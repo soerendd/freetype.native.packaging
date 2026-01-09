@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>FreeType.Native.Bindings</id>
+    <version>$version$</version>
+    <title>FreeType C# Bindings</title>
+    <authors>FreeType Project</authors>
+    <owners>FreeType Project</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">FTL</license>
+    <projectUrl>https://freetype.org/</projectUrl>
+    <description>C# bindings for FreeType - automatically generated P/Invoke declarations for the FreeType font rasterization library. This package provides strongly-typed access to FreeType functions and structures.</description>
+    <copyright>Copyright © 1996-2025 David Turner, Robert Wilhelm, and Werner Lemberg</copyright>
+    <tags>freetype font truetype opentype bindings interop pinvoke csharp</tags>
+    <repository type="git" url="https://github.com/freetype/freetype" />
+    <dependencies>
+      <group targetFramework="netstandard2.0">
+        <dependency id="FreeType.Native" version="[2.14.1]" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <!-- Compiled bindings assembly -->
+    <file src="bindings\FreeType.Native.Bindings\bin\Release\netstandard2.0\FreeType.Native.Bindings.dll" target="lib\netstandard2.0\FreeType.Native.Bindings.dll" />
+    <file src="bindings\FreeType.Native.Bindings\bin\Release\netstandard2.0\FreeType.Native.Bindings.xml" target="lib\netstandard2.0\FreeType.Native.Bindings.xml" />
+  </files>
+</package>
