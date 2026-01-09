@@ -16,16 +16,16 @@
     </None>
     
     <!-- Linux x64 -->
-    <None Include="$(MSBuildThisFileDirectory)..\runtimes\linux-x64\native\libfreetype.so.6" 
+    <None Include="$(MSBuildThisFileDirectory)..\runtimes\linux-x64\native\libfreetype.so" 
           Condition="'$(RuntimeIdentifier)' == 'linux-x64' OR '$(RuntimeIdentifier)' == ''">
-      <Link>runtimes\linux-x64\native\libfreetype.so.6</Link>
+      <Link>runtimes\linux-x64\native\libfreetype.so</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     
     <!-- Linux ARM64 -->
-    <None Include="$(MSBuildThisFileDirectory)..\runtimes\linux-arm64\native\libfreetype.so.6" 
+    <None Include="$(MSBuildThisFileDirectory)..\runtimes\linux-arm64\native\libfreetype.so" 
           Condition="'$(RuntimeIdentifier)' == 'linux-arm64' OR '$(RuntimeIdentifier)' == ''">
-      <Link>runtimes\linux-arm64\native\libfreetype.so.6</Link>
+      <Link>runtimes\linux-arm64\native\libfreetype.so</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     
