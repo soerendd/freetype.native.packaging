@@ -202,6 +202,7 @@ jobs:
           -D CMAKE_BUILD_TYPE=Release \
           -D BUILD_SHARED_LIBS=ON \
           -D CMAKE_PREFIX_PATH=$PWD/build-deps \
+          -D CMAKE_C_FLAGS="-fpack-struct=8 -fno-common" \
           -D FT_REQUIRE_ZLIB=TRUE \
           -D FT_REQUIRE_BZIP2=TRUE \
           -D FT_REQUIRE_PNG=TRUE \
