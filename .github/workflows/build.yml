@@ -106,6 +106,16 @@ jobs:
         else
           echo "Brotli already fixed upstream, skipping patch"
         fi
+        
+        # Patch fttypes.h to use 32-bit integers on Linux to match Windows LLP64 ABI
+        echo "Patching fttypes.h for 32-bit long types..."
+        sed -i 's/typedef signed long\s\+FT_Long;/typedef int FT_Long;/' freetype/include/freetype/fttypes.h
+        sed -i 's/typedef unsigned long\s\+FT_ULong;/typedef unsigned int FT_ULong;/' freetype/include/freetype/fttypes.h
+        sed -i 's/typedef signed long\s\+FT_Fixed;/typedef int FT_Fixed;/' freetype/include/freetype/fttypes.h
+        sed -i 's/typedef signed long\s\+FT_F26Dot6;/typedef int FT_F26Dot6;/' freetype/include/freetype/fttypes.h
+        
+        echo "Patching ftimage.h for FT_Pos..."
+        sed -i 's/typedef signed long\s\+FT_Pos;/typedef int FT_Pos;/' freetype/include/freetype/ftimage.h
     
     - name: Install build tools
       run: |
@@ -202,7 +212,6 @@ jobs:
           -D CMAKE_BUILD_TYPE=Release \
           -D BUILD_SHARED_LIBS=ON \
           -D CMAKE_PREFIX_PATH=$PWD/build-deps \
-          -D CMAKE_C_FLAGS="-fpack-struct=8 -fno-common" \
           -D FT_REQUIRE_ZLIB=TRUE \
           -D FT_REQUIRE_BZIP2=TRUE \
           -D FT_REQUIRE_PNG=TRUE \
