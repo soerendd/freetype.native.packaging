@@ -25,6 +25,33 @@ freetype/include/freetype/ftsystem.h
 --traverse
 freetype/include/freetype/fterrors.h
 
+--traverse
+freetype/include/freetype/ftcache.h
+
+--traverse
+freetype/include/freetype/ftglyph.h
+
+--traverse
+freetype/include/freetype/ftbitmap.h
+
+--traverse
+freetype/include/freetype/ftoutln.h
+
+--traverse
+freetype/include/freetype/ftstroke.h
+
+--traverse
+freetype/include/freetype/ftbbox.h
+
+--traverse
+freetype/include/freetype/ftlcdfil.h
+
+--traverse
+freetype/include/freetype/ftsynth.h
+
+--traverse
+freetype/include/freetype/ftadvanc.h
+
 --namespace
 FreeType.Native.Bindings
 
