@@ -33,6 +33,18 @@ jobs:
         } else {
           Write-Host "Brotli already fixed upstream, skipping patch"
         }
+        
+        # Patch fttypes.h to use 64-bit integers on Windows to match Linux LP64 ABI
+        Write-Host "Patching fttypes.h for 64-bit long types..."
+        $fttypes = "freetype\include\freetype\fttypes.h"
+        (Get-Content $fttypes) -replace 'typedef signed long\s+FT_Long;', 'typedef __int64 FT_Long;' `
+                                -replace 'typedef unsigned long\s+FT_ULong;', 'typedef unsigned __int64 FT_ULong;' `
+                                -replace 'typedef signed long\s+FT_Fixed;', 'typedef __int64 FT_Fixed;' `
+                                -replace 'typedef signed long\s+FT_F26Dot6;', 'typedef __int64 FT_F26Dot6;' | Set-Content $fttypes
+        
+        Write-Host "Patching ftimage.h for FT_Pos..."
+        $ftimage = "freetype\include\freetype\ftimage.h"
+        (Get-Content $ftimage) -replace 'typedef signed long\s+FT_Pos;', 'typedef __int64 FT_Pos;' | Set-Content $ftimage
     
     - name: Setup and Install vcpkg dependencies
       run: |
@@ -106,16 +118,6 @@ jobs:
         else
           echo "Brotli already fixed upstream, skipping patch"
         fi
-        
-        # Patch fttypes.h to use 32-bit integers on Linux to match Windows LLP64 ABI
-        echo "Patching fttypes.h for 32-bit long types..."
-        sed -i 's/typedef signed long\s\+FT_Long;/typedef int FT_Long;/' freetype/include/freetype/fttypes.h
-        sed -i 's/typedef unsigned long\s\+FT_ULong;/typedef unsigned int FT_ULong;/' freetype/include/freetype/fttypes.h
-        sed -i 's/typedef signed long\s\+FT_Fixed;/typedef int FT_Fixed;/' freetype/include/freetype/fttypes.h
-        sed -i 's/typedef signed long\s\+FT_F26Dot6;/typedef int FT_F26Dot6;/' freetype/include/freetype/fttypes.h
-        
-        echo "Patching ftimage.h for FT_Pos..."
-        sed -i 's/typedef signed long\s\+FT_Pos;/typedef int FT_Pos;/' freetype/include/freetype/ftimage.h
     
     - name: Install build tools
       run: |

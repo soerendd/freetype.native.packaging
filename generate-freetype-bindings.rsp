@@ -54,11 +54,11 @@ FT_Short=short
 FT_UShort=ushort
 FT_Int=int
 FT_UInt=uint
-FT_Long=int
-FT_ULong=uint
-FT_Fixed=int
-FT_F26Dot6=int
-FT_Pos=int
+FT_Long=nint
+FT_ULong=nuint
+FT_Fixed=nint
+FT_F26Dot6=nint
+FT_Pos=nint
 FT_Error=int
 FT_Bool=byte
 
