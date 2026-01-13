@@ -5,10 +5,7 @@ generate-helper-types
 compatible-codegen
 
 --file
-freetype/include/ft2build.h
-
---file
-freetype/include/freetype/freetype.h
+freetype-all.h
 
 --traverse
 freetype/include/freetype/freetype.h
@@ -18,6 +15,9 @@ freetype/include/freetype/fttypes.h
 
 --traverse
 freetype/include/freetype/ftimage.h
+
+--traverse
+freetype/include/freetype/ftcolor.h
 
 --traverse
 freetype/include/freetype/ftsystem.h
