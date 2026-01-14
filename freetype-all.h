@@ -1,0 +1,12 @@
+#include <ft2build.h>
+#include <freetype/freetype.h>
+#include <freetype/ftcache.h>
+#include <freetype/ftglyph.h>
+#include <freetype/ftbitmap.h>
+#include <freetype/ftoutln.h>
+#include <freetype/ftstroke.h>
+#include <freetype/ftbbox.h>
+#include <freetype/ftlcdfil.h>
+#include <freetype/ftsynth.h>
+#include <freetype/ftadvanc.h>
+#include <freetype/ftcolor.h>
